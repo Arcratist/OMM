@@ -15,6 +15,8 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 
 import OMM.ui.windows.WindowMain;
+import javax.swing.ImageIcon;
+import java.awt.Font;
 
 /**
  * @author Brett Daniel Smith
@@ -36,7 +38,8 @@ public class PanelSelectorWindow extends OMMPanel {
 		setMinimumSize(new Dimension(470, 490));
 		setMaximumSize(new Dimension(470, 490));
 
-		JButton btn_op1 = new JButton("Youtube To MP3");
+		JButton btn_op1 = new JButton("YouTube To MP3");
+		btn_op1.setFont(new Font("Tahoma", Font.BOLD, 10));
 		btn_op1.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				windowMain.setPanel(windowMain.youtubeMp3Downloader);
@@ -46,6 +49,7 @@ public class PanelSelectorWindow extends OMMPanel {
 		add(btn_op1);
 
 		JButton btn_op2 = new JButton("YouTube Downloader");
+		btn_op2.setFont(new Font("Tahoma", Font.BOLD, 10));
 		btn_op2.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				windowMain.setPanel(windowMain.youtubeVideoDownloader);
@@ -55,6 +59,7 @@ public class PanelSelectorWindow extends OMMPanel {
 		add(btn_op2);
 
 		JButton btn_op3 = new JButton("Torrent Downloader");
+		btn_op3.setFont(new Font("Tahoma", Font.BOLD, 10));
 		btn_op3.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				windowMain.setPanel(windowMain.torrentDownloader);
@@ -64,6 +69,7 @@ public class PanelSelectorWindow extends OMMPanel {
 		add(btn_op3);
 
 		JButton btn_op4 = new JButton("Video Converter");
+		btn_op4.setFont(new Font("Tahoma", Font.BOLD, 10));
 		btn_op4.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				windowMain.setPanel(windowMain.videoConverter);

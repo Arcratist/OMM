@@ -6,15 +6,16 @@
  * User Manual available at https://docs.gradle.org/6.3/userguide/java_library_plugin.html
  */
 
-plugins {
-    // Apply the java-library plugin to add support for Java Library
-    id 'java-library'
-}
+apply plugin: 'java-library'
+apply plugin: 'gradle-one-jar'
 
-repositories {
-    // Use jcenter for resolving dependencies.
-    // You can declare any Maven/Ivy/file repository here.
-    jcenter()
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.github.rholder:gradle-one-jar:1.0.4'
+    }
 }
 
 allprojects {
@@ -22,7 +23,19 @@ allprojects {
 	repositories {
 		maven { url 'https://jitpack.io' }
 		maven { url 'http://4thline.org/m2'}
+		jcenter()
 	}
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'OMM.Main'
+    }
+}
+
+task fatJar(type: OneJar) {
+    mainClass = 'OMM.Main'
+    archiveName = 'OMM-FAT.jar'
 }
 
 dependencies {
@@ -33,7 +46,6 @@ dependencies {
 
 	compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.0.1'
 	
-	//implementation 'com.github.mpetazzoni:ttorrent:-SNAPSHOT'
 	compile "org.fourthline.cling:cling-core:2.1.2"
 	
 	compile "com.github.atomashpolskiy:bt-core:1.9"
@@ -41,5 +53,5 @@ dependencies {
 	compile "com.github.atomashpolskiy:bt-dht:1.9"
 	compile "com.github.atomashpolskiy:bt-upnp:1.9"
 	
-	compile fileTree(dir: 'libs', include: ['*.jar'])
+	compile "net.bramp.ffmpeg:ffmpeg:0.6.2"
 }

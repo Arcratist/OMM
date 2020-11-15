@@ -3,8 +3,10 @@ package OMM.util;
 public class DownloadInfo {
 
 	private String url;
+	private String input;
 	private String output;
-	private float percentage;
+	private String format;
+	private int percentage;
 	private long eta;
 	private DownloadStatus status;
 	private String out;
@@ -14,6 +16,12 @@ public class DownloadInfo {
 	public DownloadInfo(String url, String output) {
 		this.setUrl(url);
 		this.setOutput(output);
+	}
+	
+	public DownloadInfo(String input, String output, String format) {
+		this.setInput(input);
+		this.setOutput(output);
+		this.setFormat(format);
 	}
 
 	public String getUrl() {
@@ -32,11 +40,11 @@ public class DownloadInfo {
 		this.output = output;
 	}
 
-	public float getPercentage() {
+	public int getPercentage() {
 		return percentage;
 	}
 
-	public void setPercentage(float percentage) {
+	public void setPercentage(int percentage) {
 		this.percentage = percentage;
 	}
 
@@ -70,6 +78,22 @@ public class DownloadInfo {
 
 	public void setNotify(boolean notify) {
 		this.notify = notify;
+	}
+
+	public String getInput() {
+		return input;
+	}
+
+	public void setInput(String input) {
+		this.input = input;
+	}
+
+	public String getFormat() {
+		return format;
+	}
+
+	public void setFormat(String format) {
+		this.format = format;
 	}
 	
 }

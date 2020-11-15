@@ -7,11 +7,13 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.text.NumberFormat;
 
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
+import javax.swing.JFormattedTextField;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
@@ -20,11 +22,20 @@ import javax.swing.JProgressBar;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 
-import com.xuggle.mediatool.IMediaReader;
-import com.xuggle.mediatool.IMediaWriter;
-import com.xuggle.mediatool.ToolFactory;
-
 import OMM.ui.windows.WindowMain;
+import OMM.util.DownloadInfo;
+import OMM.util.DownloadStatus;
+import OMM.util.VideoConverter;
+import net.bramp.ffmpeg.FFmpeg;
+import net.bramp.ffmpeg.builder.FFmpegBuilder;
+import net.bramp.ffmpeg.job.FFmpegJob;
+import net.bramp.ffmpeg.job.TwoPassFFmpegJob;
+import net.bramp.ffmpeg.progress.ProgressListener;
+import java.awt.Canvas;
+import java.awt.Color;
+import javax.swing.JSpinner;
+import javax.swing.SpinnerListModel;
+import javax.swing.JRadioButton;
 
 /**
  * @author Brett Daniel Smith
@@ -41,6 +52,21 @@ public class PanelVideoConverter extends OMMPanel {
 	private JButton btn_BrowseOutput;
 	private JButton btn_BrowseSource;
 	private JComboBox<String> comboBox;
+	private Thread thread;
+	private Runnable runnable;
+	private VideoConverter videoConverter;
+
+	private DownloadInfo currentDownload;
+	private JLabel lbl_info;
+	private JComboBox<String> comboBox_Quality;
+	private JComboBox<String> comboBox_Resolution;
+	private JFormattedTextField formattedTextField_FPS;
+	private JFormattedTextField formattedTextField_Threads;
+	private JLabel lblNewLabel_4;
+	private JLabel lblNewLabel_5;
+	private JSpinner spinner_volume;
+	private JLabel lblNewLabel_6;
+	private JRadioButton rdbtn_MultiPass;
 
 	/**
 	 * Create the panel.
@@ -49,6 +75,40 @@ public class PanelVideoConverter extends OMMPanel {
 	 */
 	public PanelVideoConverter(WindowMain windowMain) {
 		super(windowMain);
+
+		videoConverter = new VideoConverter();
+
+		runnable = new Runnable() {
+
+			@Override
+			public void run() {
+				while (true) {
+					try {
+						Thread.sleep(10);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+
+					if (currentDownload != null) {
+						if (currentDownload.isNotify()) {
+							progressBar.setValue(currentDownload.getPercentage());
+							lbl_progressBar.setText(currentDownload.getPercentage() + "%");
+							lbl_info.setText(currentDownload.getOut());
+
+							if (currentDownload.getStatus().equals(DownloadStatus.COMPLETE)) {
+								lbl_progressBar.setText("Complete");
+								btn_Convert.setText("Convert");
+								btn_Convert.setEnabled(true);
+							}
+							currentDownload.setNotify(false);
+						}
+					}
+				}
+			}
+		};
+
+		thread = new Thread(runnable, "OMM_videoconverter_logic");
+		thread.start();
 
 		setLayout(null);
 		setPreferredSize(new Dimension(470, 490));
@@ -79,7 +139,7 @@ public class PanelVideoConverter extends OMMPanel {
 		mn_File.add(mntm_File_Exit);
 
 		txtField_Output = new JTextField();
-		txtField_Output.setText(System.getProperty("user.home") + "\\Videos\\Converted\\");
+		txtField_Output.setText(".");
 		txtField_Output.setToolTipText("Video Output Location.");
 		txtField_Output.setBounds(5, 85, 365, 20);
 		add(txtField_Output);
@@ -91,8 +151,8 @@ public class PanelVideoConverter extends OMMPanel {
 				JFileChooser chooser = new JFileChooser();
 				chooser.setCurrentDirectory(new java.io.File(txtField_Output.getText()));
 				chooser.setDialogTitle("Select destionation folder...");
-				chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-				chooser.setApproveButtonText("Select");
+				chooser.setFileSelectionMode(JFileChooser.SAVE_DIALOG);
+				chooser.setApproveButtonText("Save");
 				chooser.setAcceptAllFileFilterUsed(false);
 
 				if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
@@ -106,31 +166,20 @@ public class PanelVideoConverter extends OMMPanel {
 		btn_Convert = new JButton("Convert");
 		btn_Convert.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				Runnable runnable = new Runnable() {
+				currentDownload = videoConverter.convertVideo(txtField_Input.getText(), txtField_Output.getText(),
+						comboBox.getSelectedItem().toString(), Integer.parseInt(formattedTextField_Threads.getText()),
+						comboBox_Quality.getSelectedIndex() + 1, Integer.parseInt(formattedTextField_FPS.getText()),
+						(comboBox_Resolution.getSelectedIndex() == 0) ? new Dimension(1920, 1080)
+								: new Dimension(1280, 720), calcVolume((String) spinner_volume.getValue()), rdbtn_MultiPass.isSelected());
+				btn_Convert.setText("Converting...");
+				btn_Convert.setEnabled(false);
+			}
 
-					@Override
-					public void run() {
-						System.out.println(txtField_Input.getText().toString());
-
-						IMediaReader reader = ToolFactory.makeReader(txtField_Input.getText().toString());
-						// add a viewer to the reader, to see progress as the media is
-						// transcoded
-						reader.addListener(ToolFactory.makeViewer(true));
-						IMediaWriter writer = ToolFactory
-								.makeWriter(txtField_Output.getText() + "output." + comboBox.getSelectedItem(), reader);
-
-						writer.addListener(ToolFactory.makeDebugListener());
-
-						reader.addListener(ToolFactory.makeWriter(
-								txtField_Output.getText() + "output." + comboBox.getSelectedItem(), reader));
-
-						while (reader.readPacket() == null)
-							do {
-							} while (false);
-					}
-				};
-				Thread thread = new Thread(runnable);
-				thread.start();
+			private float calcVolume(String value) {
+				if (value.equals("Normal"))
+					return 1.0f;
+				else
+					return (1.0f + Float.parseFloat(value));
 			}
 		});
 		btn_Convert.setBounds(175, 440, 120, 20);
@@ -161,6 +210,8 @@ public class PanelVideoConverter extends OMMPanel {
 
 				if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
 					txtField_Input.setText(chooser.getSelectedFile().getAbsolutePath());
+					txtField_Output.setText(txtField_Input.getText().substring(0, txtField_Input.getText().length() - 3)
+							+ comboBox.getSelectedItem().toString());
 				}
 			}
 		});
@@ -177,9 +228,87 @@ public class PanelVideoConverter extends OMMPanel {
 		progressBar.add(lbl_progressBar);
 
 		comboBox = new JComboBox<String>();
-		comboBox.setModel(new DefaultComboBoxModel<String>(new String[] { "mp4", "mkv", "avi" }));
-		comboBox.setBounds(5, 110, 90, 24);
+		comboBox.setModel(new DefaultComboBoxModel<String>(new String[] { "mp4", "mkv", "avi", "divx" }));
+		comboBox.setSelectedIndex(2);
+		comboBox.setBounds(380, 345, 80, 20);
 		add(comboBox);
 
+		lbl_info = new JLabel("[0%] frame:0 time:00:00:00.00 ms fps:00.00 speed:0.00x");
+		lbl_info.setBounds(10, 415, 450, 20);
+		add(lbl_info);
+
+		JLabel lblNewLabel = new JLabel("Threads:");
+		lblNewLabel.setBounds(10, 370, 55, 20);
+		add(lblNewLabel);
+
+		formattedTextField_Threads = new JFormattedTextField(NumberFormat.getNumberInstance());
+		formattedTextField_Threads.setHorizontalAlignment(SwingConstants.CENTER);
+		formattedTextField_Threads.setText("4");
+		formattedTextField_Threads.setBounds(70, 370, 80, 20);
+		add(formattedTextField_Threads);
+
+		JLabel lblNewLabel_1 = new JLabel("Resolution:");
+		lblNewLabel_1.setBounds(10, 345, 55, 20);
+		add(lblNewLabel_1);
+
+		comboBox_Resolution = new JComboBox<String>();
+		comboBox_Resolution.setModel(new DefaultComboBoxModel<String>(new String[] { "1920x1080", "1280x720" }));
+		comboBox_Resolution.setSelectedIndex(1);
+		comboBox_Resolution.setBounds(70, 345, 80, 20);
+		add(comboBox_Resolution);
+
+		JLabel lblNewLabel_2 = new JLabel("FPS:");
+		lblNewLabel_2.setBounds(10, 395, 55, 20);
+		add(lblNewLabel_2);
+
+		formattedTextField_FPS = new JFormattedTextField(NumberFormat.getNumberInstance());
+		formattedTextField_FPS.setHorizontalAlignment(SwingConstants.CENTER);
+		formattedTextField_FPS.setText("24");
+		formattedTextField_FPS.setBounds(70, 395, 80, 20);
+		add(formattedTextField_FPS);
+
+		JLabel lblNewLabel_3 = new JLabel("Quality:");
+		lblNewLabel_3.setBounds(160, 345, 55, 20);
+		add(lblNewLabel_3);
+
+		comboBox_Quality = new JComboBox<String>();
+		comboBox_Quality.setModel(new DefaultComboBoxModel<String>(new String[] { "HIGH", "MEDIUM", "LOW" }));
+		comboBox_Quality.setSelectedIndex(1);
+		comboBox_Quality.setBounds(225, 345, 80, 20);
+		add(comboBox_Quality);
+
+		lblNewLabel_4 = new JLabel("Format:");
+		lblNewLabel_4.setBounds(315, 345, 55, 20);
+		add(lblNewLabel_4);
+		
+		Canvas canvas = new Canvas();
+		canvas.setBackground(Color.BLACK);
+		canvas.setBounds(35, 110, 400, 225);
+		add(canvas);
+		
+		lblNewLabel_5 = new JLabel("Volume:");
+		lblNewLabel_5.setBounds(160, 370, 55, 20);
+		add(lblNewLabel_5);
+		
+		spinner_volume = new JSpinner();
+		spinner_volume.setModel(new SpinnerListModel(new String[] {"-1.0", "-0.75", "-0.50", "-0.25", "Normal", "+0.25", "+0.50", "+0.75", "+1.0"}));
+		spinner_volume.setValue("Normal");
+		spinner_volume.setBounds(225, 370, 80, 20);
+		add(spinner_volume);
+		
+		lblNewLabel_6 = new JLabel("Multi-Pass:");
+		lblNewLabel_6.setBounds(160, 395, 55, 20);
+		add(lblNewLabel_6);
+		
+		rdbtn_MultiPass = new JRadioButton("");
+		rdbtn_MultiPass.setSelected(true);
+		rdbtn_MultiPass.setHorizontalAlignment(SwingConstants.CENTER);
+		rdbtn_MultiPass.setBounds(225, 395, 80, 20);
+		add(rdbtn_MultiPass);
+
+	}
+
+	public FFmpegJob createTwoPassJob(FFmpeg ffmpeg, FFmpegBuilder builder, ProgressListener listener) {
+		return new TwoPassFFmpegJob(ffmpeg, builder, listener);
 	}
 }

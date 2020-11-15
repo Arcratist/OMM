@@ -25,7 +25,7 @@ public class Mp3Downloader {
 						@Override
 						public void onProgressUpdate(float percentage, long eta) {
 							System.out.println("Percentage: " + percentage + ", ETA: " + eta + "s");
-							downloadInfo.setPercentage(percentage);
+							downloadInfo.setPercentage((int) percentage);
 							downloadInfo.setEta(eta);
 							downloadInfo.setNotify(true);
 						}
